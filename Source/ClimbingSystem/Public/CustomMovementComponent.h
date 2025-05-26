@@ -7,7 +7,9 @@
 #include "CustomMovementComponent.generated.h"
 
 /**
+ * Enhance movement component implementing advanced climbing mechanics
  * 
+ * Handles surface dectection, climb validation and movement excution
  */
 UCLASS()
 class CLIMBINGSYSTEM_API UCustomMovementComponent : public UCharacterMovementComponent
@@ -15,41 +17,52 @@ class CLIMBINGSYSTEM_API UCustomMovementComponent : public UCharacterMovementCom
 	GENERATED_BODY()
 
 public:
-
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	//~ Begin UCharacterMovementComponent Interface
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, 
+		FActorComponentTickFunction* ThisTickFunction) override;
+	//~ End UCharacterMovementComponent Interface
 
 private:
+	/** --------------------------------------------------------------------------
+	 *  Climbing System Components
+	 *  -------------------------------------------------------------------------- */
 
 #pragma region ClimbTraces
-
-	// Trace the surface to climb
+	 /// Performs capsule-based multi-object tracing for climb surfaces
 	TArray<FHitResult> DoCapsuleTraceMultiByObject(const FVector& Start, const FVector& End, bool bShowDebugShape);
-	FHitResult DoLineTraceSingleByObject(const FVector& Start, const FVector& End, bool bShowDebugShape);
 
+	/// Performs precise line trace for surface validation
+	FHitResult DoLineTraceSingleByObject(const FVector& Start, const FVector& End, bool bShowDebugShape);
 #pragma endregion
 
 #pragma region ClimbTraceCore
-
+	/// Main surface detection routine
 	void TraceClimbaleSurface();
-	void TraceFromEyeHeight(const float& TraceDistance, const float& EyeHeightOffset = 0.f);
 
+	/// Vertical surface scanning from eye level
+	/// @param TraceDistance - Maximum detection range (cm)
+	/// @param EyeHeightOffset - Vertical adjustment from base eye height (cm)
+	void TraceFromEyeHeight(float TraceDistance, float EyeHeightOffset = 0.f);
 #pragma endregion
 
 #pragma region ClimbVariables
-
-	/** Surfaces to climb */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character Movement: Climbing", meta = (AllowPrivateAccess = "true"))
+	/** Object types considered climbable surfaces */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, 
+		Category = "Character Movement: Climbing", 
+		meta = (AllowPrivateAccess = "true"))
 	TArray<TEnumAsByte<EObjectTypeQuery> > ClimbableSurfaceTraceTypes;
 
-	/** Capsule trace Radius */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character Movement: Climbing", meta = (AllowPrivateAccess = "true"))
+	/** Radius of capsule used for climb detection */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, 
+		Category = "Character Movement: Climbing", 
+		meta = (AllowPrivateAccess = "true"))
 	float ClimbCapsuleTraceRadius{50.f};
 
-	/** Capsule trace half heig */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character Movement: Climbing", meta = (AllowPrivateAccess = "true"))
+	/** Half height of capsule used for climb detection */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, 
+		Category = "Character Movement: Climbing", 
+		meta = (AllowPrivateAccess = "true"))
 	float ClimbCapsuleTraceHalfHeight{72.f};
-
 #pragma endregion
-
 
 };

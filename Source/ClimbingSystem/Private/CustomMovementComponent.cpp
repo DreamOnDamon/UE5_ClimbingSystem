@@ -9,6 +9,7 @@ void UCustomMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+    // Core climbing detection update
     TraceClimbaleSurface();
     TraceFromEyeHeight(100.f);
 }
@@ -62,19 +63,26 @@ FHitResult UCustomMovementComponent::DoLineTraceSingleByObject(const FVector& St
 // Core metiod for tracing surfaces.
 void  UCustomMovementComponent::TraceClimbaleSurface()
 {
+    // Offset start position to prevent self-collision
     const FVector StartOffset{UpdatedComponent->GetForwardVector() * 30.f};
     const FVector Start{UpdatedComponent->GetComponentLocation() + StartOffset};
     const FVector End{Start + UpdatedComponent->GetForwardVector()};
 
+    // Create capsule to detect climble suefaces in front
     DoCapsuleTraceMultiByObject(Start, End, true);
 }
 
-void UCustomMovementComponent::TraceFromEyeHeight(const float& TraceDistance, const float& TraceStartOffset)
+void UCustomMovementComponent::TraceFromEyeHeight(float TraceDistance, float TraceStartOffset)
 {
-    const FVector HeightOffset{UpdatedComponent->GetUpVector() * CharacterOwner->BaseEyeHeight + TraceStartOffset};
-    const FVector Start{UpdatedComponent->GetComponentLocation() + HeightOffset};
-    const FVector End{Start + UpdatedComponent->GetForwardVector() * TraceDistance};
+    // Calculate start position at character eye
+    const FVector HeightOffset{UpdatedComponent->GetUpVector() * 
+        CharacterOwner->BaseEyeHeight + TraceStartOffset};
+    const FVector Start{UpdatedComponent->GetComponentLocation() + 
+        HeightOffset};
+    const FVector End{Start + UpdatedComponent->GetForwardVector() * 
+        TraceDistance};
 
+    // Create line trace to detect surface
     DoLineTraceSingleByObject(Start, End, true);
 }
 
