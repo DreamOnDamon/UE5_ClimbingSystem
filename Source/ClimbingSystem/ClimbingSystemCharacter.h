@@ -53,6 +53,10 @@ private:
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
+	void HandleGroundMovementInput(const FInputActionValue& Value);
+
+	void HandleClimbMovementInput(const FInputActionValue& Value);
+
 	/** Look Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
