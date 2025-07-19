@@ -5,9 +5,31 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Components/CapsuleComponent.h"
 #include "ClimbingSystem/ClimbingSystemCharacter.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "ClimbingSystem/DebugHelper.h"
 
 //~ Begin UCharacterMovementComponent Interface
+
+void  UCustomMovementComponent::BeginPlay()
+{
+    Super::BeginPlay();
+
+    OwningPlayerAnimInstance = CharacterOwner->GetMesh()->GetAnimInstance();
+
+    if (OwningPlayerAnimInstance)
+    {
+        OwningPlayerAnimInstance->OnMontageEnded.AddDynamic(
+            this, 
+            &UCustomMovementComponent::OnClimbMontageEnded
+        );
+
+        OwningPlayerAnimInstance->OnMontageBlendingOut.AddDynamic(
+            this,
+            &UCustomMovementComponent::OnClimbMontageEnded
+        );
+    }
+}
+
 void UCustomMovementComponent::TickComponent(
     float DeltaTime, 
     enum ELevelTick TickType, 
@@ -53,7 +75,7 @@ void UCustomMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 {
     if (IsClimbing())
     {
-        // Setup the custom physics
+        // Set up the custom physics
         PhysClimb(deltaTime, Iterations);
     }
 
@@ -93,7 +115,7 @@ void UCustomMovementComponent::ToggleToClimbing(bool bEnableClimb)
         {
             // Enter the climb state
             Debug::Print(TEXT("Start Climbing..."), FColor::Green, 3);
-            StartClimbing();
+            PlayClimbMontage(IdleToClimbMontage);
         }
     }
     else
@@ -113,8 +135,7 @@ bool UCustomMovementComponent::IsClimbing() const
 
 
 #pragma region ClimbTraces
-
-// Get all objects in fron of character and out it in to a array and reture this array.
+// Get all objects in fron of character and out it in to an array and return this array.
 TArray<FHitResult> UCustomMovementComponent::DoCapsuleTraceMultiByObject(
     const FVector& Start, 
     const FVector& End, 
@@ -194,7 +215,7 @@ bool UCustomMovementComponent::TraceClimbaleSurface()
     const FVector End{Start + UpdatedComponent->GetForwardVector()};
 
     // Create capsule to detect climble suefaces in front
-    ClimbableSurfacesTraceResults = DoCapsuleTraceMultiByObject(Start, End, true);
+    ClimbableSurfacesTraceResults = DoCapsuleTraceMultiByObject(Start, End, false);
 
     return !ClimbableSurfacesTraceResults.IsEmpty();
 }
@@ -249,10 +270,15 @@ void UCustomMovementComponent::PhysClimb(float deltaTime, int32 Iterations)
     TraceClimbaleSurface();
     ProcessClimbaleSurfaceInfo();
 
-    /** Check if we should stop climbing
-    *--------------------------------------------------------------------------
-    * TODO
-    * -------------------------------------------------------------------------- */
+    if (CheckHasReachedFloor())
+    {
+        Debug::Print(TEXT("HasReachedFloor..."), FColor::Green, 2);
+    }else
+    {
+        Debug::Print(TEXT("HasNotReachedFloor..."), FColor::Red, 2);
+    }
+
+    // Check if we should stop climbing
     if (CheckShouldStopClimbing())
     {
         StopClimbing();
@@ -262,11 +288,7 @@ void UCustomMovementComponent::PhysClimb(float deltaTime, int32 Iterations)
 
     if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
     {
-    /** Define the max speed and acceleration
-    *--------------------------------------------------------------------------
-    * TODO
-    * -------------------------------------------------------------------------- */
-
+    // Define the max speed and acceleration
         CalcVelocity(deltaTime, 0.f, true, MaxBreakClimbDeceleration);
     }
 
@@ -310,11 +332,6 @@ void UCustomMovementComponent::ProcessClimbaleSurfaceInfo()
 
     CurrentClimbableSurfaceLocation /= ClimbableSurfacesTraceResults.Num();
     CurrentClimbableSurfaceNormal = CurrentClimbableSurfaceNormal.GetSafeNormal();
-    
-    Debug::Print(TEXT("CurrentClimbableSurfaceLocation") +
-        CurrentClimbableSurfaceLocation.ToCompactString(), FColor::Cyan, 1);
-    Debug::Print(TEXT(" CurrentClimbableSurfaceNormal") + 
-        CurrentClimbableSurfaceNormal.ToCompactString(), FColor::Red, 2);
 }
 
 bool UCustomMovementComponent::CheckShouldStopClimbing()
@@ -323,7 +340,7 @@ bool UCustomMovementComponent::CheckShouldStopClimbing()
 
     const float DotProductOfUpVectorAndSurfaceNormal{
         static_cast<float>(FVector::DotProduct(CurrentClimbableSurfaceNormal,
-            UpdatedComponent->GetUpVector()))};
+            FVector::UpVector))};
 
     const float Degree{FMath::RadiansToDegrees(
         FMath::Acos(DotProductOfUpVectorAndSurfaceNormal))};
@@ -332,6 +349,36 @@ bool UCustomMovementComponent::CheckShouldStopClimbing()
 
     Debug::Print(TEXT("Degree of Climb Surface: ") + FString::SanitizeFloat(Degree),FColor::Yellow,1);
 
+    return false;
+}
+
+bool UCustomMovementComponent::CheckHasReachedFloor()
+{
+    // If Character is Climbing Up,means he is not going to reach floor.
+    if (GetUnrotatedClimbVelocity().Z > 10.f) return false;
+
+    const FVector DownVector{-UpdatedComponent->GetUpVector()};
+    const FVector StartOffset{DownVector * 50.f};
+
+    const FVector Start{UpdatedComponent->GetComponentLocation() + StartOffset};
+    const FVector End{Start + DownVector};
+
+    TArray<FHitResult> PossibleFloorHits{
+        DoCapsuleTraceMultiByObject(Start, End, true)};
+
+    if (PossibleFloorHits.IsEmpty()) return false;
+
+    for (const FHitResult& PossibleFloorHit : PossibleFloorHits)
+    {
+        const bool bFloorReached = FVector::Parallel(
+            -PossibleFloorHit.ImpactNormal, FVector::UpVector) &&
+            GetUnrotatedClimbVelocity().Z < -10.f;
+
+        if (bFloorReached)
+        {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -365,5 +412,28 @@ void UCustomMovementComponent::SnapMovementToClimbableSurfaces(float DeltaTime)
         SnapVector * DeltaTime * MaxClimbSpeed,
         UpdatedComponent->GetComponentQuat(),
         true);
+}
+
+void UCustomMovementComponent::PlayClimbMontage(UAnimMontage* MontageToPlay)
+{
+    if (!MontageToPlay) return;
+    if (!OwningPlayerAnimInstance) return;
+    if (OwningPlayerAnimInstance->IsAnyMontagePlaying()) return;
+
+    OwningPlayerAnimInstance->Montage_Play(MontageToPlay);
+}
+
+void UCustomMovementComponent::OnClimbMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+    Debug::Print(TEXT("Climb Montage Ended..."));
+    if (Montage == IdleToClimbMontage)
+    {
+        StartClimbing();
+    }
+}
+
+FVector UCustomMovementComponent::GetUnrotatedClimbVelocity() const
+{
+    return UKismetMathLibrary::Quat_UnrotateVector(UpdatedComponent->GetComponentQuat(), Velocity);
 }
 #pragma endregion

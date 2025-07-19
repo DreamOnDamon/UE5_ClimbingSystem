@@ -62,8 +62,6 @@ void AClimbingSystemCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-
-	Debug::Print(TEXT("Debug Working..."));
 }
 
 //////////////////////////////////////////////////////////////////////////

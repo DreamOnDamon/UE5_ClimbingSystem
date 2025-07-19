@@ -11,6 +11,8 @@
  * 
  * Handles surface dectection, climb validation and movement excution
  */
+class UAnimMontage;
+class UAnimInstance;
 
 UENUM(BlueprintType)
 namespace ECustomMovementMode{
@@ -27,6 +29,8 @@ class CLIMBINGSYSTEM_API UCustomMovementComponent : public UCharacterMovementCom
 
 protected:
 	//~ Begin UCharacterMovementComponent Interface
+	virtual void BeginPlay() override;
+
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, 
 		FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -47,7 +51,9 @@ public:
 	/** Toggles climbing state based on input */
 	void ToggleToClimbing(bool bEnableClimb);
 
-	FORCEINLINE FVector GetClimbableSurfaceNormal() { return CurrentClimbableSurfaceNormal; }
+	FORCEINLINE FVector GetClimbableSurfaceNormal() const { return CurrentClimbableSurfaceNormal; }
+
+	FVector GetUnrotatedClimbVelocity() const;
 
 private:
 	/** --------------------------------------------------------------------------
@@ -109,9 +115,16 @@ private:
 
 	bool CheckShouldStopClimbing();
 
+	bool CheckHasReachedFloor();
+
 	FQuat GetClimbRotation(float DeltaTime);
 
 	void SnapMovementToClimbableSurfaces(float DeltaTime);
+
+	void PlayClimbMontage(UAnimMontage* MontageToPlay);
+
+	UFUNCTION()
+	void OnClimbMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 #pragma endregion
 
 #pragma region ClimbCoreVariables
@@ -121,6 +134,10 @@ private:
 	FVector CurrentClimbableSurfaceLocation;
 
 	FVector CurrentClimbableSurfaceNormal;
+
+	UPROPERTY()
+	UAnimInstance* OwningPlayerAnimInstance;
+
 #pragma endregion
 
 #pragma region ClimbBPVariables
@@ -156,6 +173,11 @@ private:
 		Category = "Character Movement: Climbing",
 		meta = (AllowPrivateAccess = "true"))
 	float MaxClimbAcceleration{300.f};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "Character Movement: Climbing",
+		meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* IdleToClimbMontage;
 
 #pragma endregion
 
