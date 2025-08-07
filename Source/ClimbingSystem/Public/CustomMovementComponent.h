@@ -42,6 +42,8 @@ protected:
 	virtual float GetMaxSpeed() const override;
 
 	virtual float GetMaxAcceleration() const override;
+
+	virtual FVector ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity) const override;
 	//~ End UCharacterMovementComponent Interface
 
 public:
@@ -61,13 +63,15 @@ private:
 	 *  -------------------------------------------------------------------------- */
 
 #pragma region ClimbTraces
-	 /**
-	 * Performs capsule-based multi-object tracing for climb surfaces
-	 * @param Start - Trace start position
-	 * @param End - Trace end position
-	 * @param bShowDebug - Visualize debug shapes
-	 * @param bPersistentDebug - Keep debug shapes persistent
-	 */
+	// ReSharper disable once CppDoxygenUnresolvedReference
+	// ReSharper disable once CppDoxygenUnresolvedReference
+	/**
+	* Performs capsule-based multi-object tracing for climb surfaces
+	* @param Start - Trace start position
+	* @param End - Trace end position
+	* @param bShowDebug - Visualize debug shapes
+	* @param bPersistentDebug - Keep debug shapes persistent
+	*/
 	TArray<FHitResult> DoCapsuleTraceMultiByObject(
 		const FVector& Start, 
 		const FVector& End, 
@@ -103,6 +107,9 @@ private:
 	/** Determines if character can start climbing */
 	bool CanStartClimbing();
 
+	/** Determind if character can climb down the ledge */
+	bool CanClimbDownLedge();
+
 	/** Enters climbing state */
 	void StartClimbing();
 
@@ -116,6 +123,8 @@ private:
 	bool CheckShouldStopClimbing();
 
 	bool CheckHasReachedFloor();
+
+	bool CheckHasReachedLedge();
 
 	FQuat GetClimbRotation(float DeltaTime);
 
@@ -177,7 +186,28 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "Character Movement: Climbing",
 		meta = (AllowPrivateAccess = "true"))
+	float ClimbDownSurfaceTraceOffset{300.f};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "Character Movement: Climbing",
+		meta = (AllowPrivateAccess = "true"))
+	float ClimbDownLedgeSurfaceTraceOffset{300.f};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "Character Movement: Climbing",
+		meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* IdleToClimbMontage;
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "Character Movement: Climbing",
+		meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* ClimbToTopMontage;
+
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,
+		Category = "Character Movement: Climbing", 
+		meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* ClimbDownLedgeMontage;
 
 #pragma endregion
 
